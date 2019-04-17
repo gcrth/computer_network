@@ -57,18 +57,3 @@ if __name__ == "__main__":
     r= Recv()
     r.init()
     r.recv()
-
-    
-  
-# HOST = socket.gethostname() 
-# PORT = 9999  
-  
-# s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-# # 绑定 客户端口和地址:
-# s.bind((HOST, PORT))
-
-# while True:
-#     # 接收数据 自动阻塞 等待客户端请求:
-#     data, addr = s.recvfrom(1024)
-#     print ('Received from %s:%s.' % addr)
-#     s.sendto(b'Hello, %s!' % data, addr) 
