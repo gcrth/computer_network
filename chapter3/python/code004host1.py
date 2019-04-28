@@ -26,14 +26,14 @@ errorRate = 1/int(FilterError, 10)
 lostRate = 1/int(FilterLost, 10)
 
 
-class host2:
+class host1:
     def init(self):
         self.recvCount = 0
         self.sendCount = 0
         self.HOST = socket.gethostname()
         self.PORT = int(UDPPort, 10)
-        self.address = (self.HOST, self.PORT)
-        self.sendAddress = (self.HOST, self.PORT+1)
+        self.address = (self.HOST, self.PORT+1)
+        self.sendAddress = (self.HOST, self.PORT)
 
         self.sForRecv = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sForRecv.bind(self.address)
@@ -149,10 +149,10 @@ class host2:
                 self.processEvent.set()
         self.thread.join()
 
-    def recv(self):
+    def recv(self):  # 不读入，可能是同步问题
         while True:
             # print('recv')
-            if self.recvCount == dataLen and self.sendCount == dataLen:
+            if self.recvCount >= dataLen and self.sendCount >= dataLen:
                 break
             self.recvBuf, _ = self.sForRecv.recvfrom(1024)
             self.recvEvent.set()
@@ -196,6 +196,6 @@ class host2:
 
 
 if __name__ == "__main__":
-    s = host2()
+    s = host1()
     s.init()
     s.send()
