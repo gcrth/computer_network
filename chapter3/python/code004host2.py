@@ -71,12 +71,12 @@ class host2:
             if self.recvCount >= dataLen and self.sendCount >= dataLen:
                 count = 0
                 while True and count < 20:
-                    time.sleep(0.5)                    
+                    time.sleep(0.5) 
+                    count += 1
                     if self.recvEvent.is_set() :
                         package = self.pack(b'', sn, frameExpextedToRecv)
                         print('ack to send ', frameExpextedToRecv)
-                        self.sForSend.sendto(package, self.sendAddress)
-                        count += 1
+                        self.sForSend.sendto(package, self.sendAddress)      
                 break
 
             # print('---------------------------------------')
@@ -84,13 +84,14 @@ class host2:
                 print('---------------------------------------')
                 self.recvEvent.clear()
                 if self.check(self.recvBuf, frameExpextedToRecv):
-                    self.timer.cancel()
-                    self.timer = threading.Timer(timeout, self.reportTimeout)
-                    self.timer.start()
                     print('right frame sn ', frameExpextedToRecv)
                     print(self.unpack(self.recvBuf))
                     self.sendCount += (self.recvBuf[-3] -
                                        ack+MAX_SEQ+1) % (MAX_SEQ+1)
+                    if ack!=self.recvBuf[-3]:
+                        self.timer.cancel()
+                        self.timer = threading.Timer(timeout, self.reportTimeout)
+                        self.timer.start()
                     ack = self.recvBuf[-3]
                     bufferSize = (sn-ack+MAX_SEQ+1) % (MAX_SEQ+1)
                     print('ack get ', ack)
@@ -101,6 +102,10 @@ class host2:
                     print('wrong sn')
                     self.sendCount += (self.recvBuf[-3] -
                                        ack+MAX_SEQ+1) % (MAX_SEQ+1)
+                    if ack!=self.recvBuf[-3]:
+                        self.timer.cancel()
+                        self.timer = threading.Timer(timeout, self.reportTimeout)
+                        self.timer.start()
                     ack = self.recvBuf[-3]
                     bufferSize = (sn-ack+MAX_SEQ+1) % (MAX_SEQ+1)
                     print('ack get ', ack)
