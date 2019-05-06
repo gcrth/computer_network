@@ -3,6 +3,8 @@ import socket
 import random
 import threading
 import time
+import collections
+from datetime import datetime,timedelta
 
 MAX_SEQ = 7
 MAX_BUFSIZE = 7
@@ -40,7 +42,6 @@ class host2:
 
         self.sForSend = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-        self.timer = threading.Timer(timeout, self.reportTimeout)
         self.recvEvent = threading.Event()
         self.recvEvent.clear()
         self.processEvent = threading.Event()
@@ -49,6 +50,7 @@ class host2:
         self.timeoutEvent.clear()
         self.thread = threading.Thread(target=self.recv, args=())
         self.thread.start()
+        self.timeQueue=collections.deque()
 
     def send(self):
 
@@ -63,11 +65,14 @@ class host2:
         buffer = [-1 for _ in range(MAX_BUFSIZE+1)]
 
         data = [b'package1', b'package2', b'package3', b'package4']
-        self.timer.start()
         flag=0
         while True:
             if flag:
                 break
+            if self.timeQueue.__len__():
+                top=self.timeQueue[0]
+                if (datetime.now()-top).total_seconds()>timeout:
+                    self.timeoutEvent.set()
             if self.recvCount >= dataLen and self.sendCount >= dataLen:
                 count = 0
                 while True and count < 20:
@@ -89,9 +94,9 @@ class host2:
                     self.sendCount += (self.recvBuf[-3] -
                                        ack+MAX_SEQ+1) % (MAX_SEQ+1)
                     if ack!=self.recvBuf[-3]:
-                        self.timer.cancel()
-                        self.timer = threading.Timer(timeout, self.reportTimeout)
-                        self.timer.start()
+                        length=self.recvBuf[-3]-ack
+                        for _ in range(length):
+                            self.timeQueue.popleft()
                     ack = self.recvBuf[-3]
                     bufferSize = (sn-ack+MAX_SEQ+1) % (MAX_SEQ+1)
                     print('ack get ', ack)
@@ -103,9 +108,9 @@ class host2:
                     self.sendCount += (self.recvBuf[-3] -
                                        ack+MAX_SEQ+1) % (MAX_SEQ+1)
                     if ack!=self.recvBuf[-3]:
-                        self.timer.cancel()
-                        self.timer = threading.Timer(timeout, self.reportTimeout)
-                        self.timer.start()
+                        length=self.recvBuf[-3]-ack
+                        for _ in range(length):
+                            self.timeQueue.popleft()
                     ack = self.recvBuf[-3]
                     bufferSize = (sn-ack+MAX_SEQ+1) % (MAX_SEQ+1)
                     print('ack get ', ack)
@@ -114,11 +119,10 @@ class host2:
                 self.processEvent.set()
             elif self.timeoutEvent.is_set():
                 print('---------------------------------------')
-                self.timeoutEvent.clear()
-                self.timer.cancel()
-                self.timer = threading.Timer(timeout, self.reportTimeout)
-                self.timer.start()
+                self.timeoutEvent.clear()                
                 for i in range(bufferSize):
+                    self.timeQueue.popleft()
+                    self.timeQueue.append(datetime.now())
                     package = self.pack(
                         data[buffer[ack+i]], ack+i, frameExpextedToRecv)
                     print('frame to send ', ack+i, ' data no ', buffer[ack+i])
@@ -134,6 +138,7 @@ class host2:
                     time.sleep(timeForSend)
             elif bufferSize < MAX_BUFSIZE and i_data < len(data):
                 print('---------------------------------------')
+                self.timeQueue.append(datetime.now())
                 package = self.pack(data[i_data], sn, frameExpextedToRecv)
                 print('frame to send ', sn, ' data no ', i_data)
                 buffer[sn] = i_data
@@ -174,9 +179,6 @@ class host2:
 
     def errorSimulation(self, package):
         return package+b'0'
-
-    def reportTimeout(self):
-        self.timeoutEvent.set()
 
     def unpack(self, package):
         return package[1:-3]
